@@ -7,7 +7,10 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"sort"
+	"strings"
 
+	"github.com/spf13/cast"
 	"github.com/spf13/cobra"
 )
 
@@ -100,23 +103,37 @@ func calculateMD5(filePath string) (string, error) {
 func computeDirectoryMD5(dirPath string) (string, error) {
 	hasher := md5.New()
 
-	err := filepath.Walk(dirPath, func(filePath string, info os.FileInfo, err error) error {
-		if err != nil {
-			return err
-		}
-		if !info.IsDir() { // 仅处理文件
-			file, err := os.Open(filePath)
-			if err != nil {
-				return err
-			}
-			defer file.Close()
+	matchers, err := filepath.Glob(filepath.Join(dirPath, "*"))
+	if err != nil {
+		return "", err
+	}
 
-			if _, err := io.Copy(hasher, file); err != nil {
-				return err
-			}
-		}
-		return nil
+	sort.Slice(matchers, func(i, j int) bool {
+		iext := strings.Replace(filepath.Ext(matchers[i]), ".part", "", -1)
+		jext := strings.Replace(filepath.Ext(matchers[j]), ".part", "", -1)
+		return cast.ToInt(iext) < cast.ToInt(jext)
 	})
+
+	for _, m := range matchers {
+		fmt.Printf("start to deal file %s\n", m)
+		fi, err := os.Stat(m)
+		if err != nil {
+			return "", err
+		}
+		if fi.IsDir() {
+			fmt.Printf("path %s is directory, skip ...\n", m)
+			continue
+		}
+		file, err := os.Open(m)
+		if err != nil {
+			return "", err
+		}
+		defer file.Close()
+		if _, err := io.Copy(hasher, file); err != nil {
+			return "", err
+		}
+	}
+
 	if err != nil {
 		return "", err
 	}

@@ -6,7 +6,10 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"sort"
+	"strings"
 
+	"github.com/spf13/cast"
 	"github.com/spf13/cobra"
 )
 
@@ -42,6 +45,12 @@ func mergeFiles(outputFilePath string, inputDir string) error {
 		return errors.New("no files to merge")
 	}
 
+	sort.Slice(files, func(i, j int) bool {
+		iext := strings.Replace(filepath.Ext(files[i]), ".part", "", -1)
+		jext := strings.Replace(filepath.Ext(files[j]), ".part", "", -1)
+		return cast.ToInt(iext) < cast.ToInt(jext)
+	})
+
 	fmt.Println("output to: ", outputFilePath)
 	outputFile, err := os.Create(outputFilePath)
 	if err != nil {
@@ -50,7 +59,7 @@ func mergeFiles(outputFilePath string, inputDir string) error {
 	defer outputFile.Close()
 
 	for idx, filePath := range files {
-		fmt.Printf("start progress: %d/%d\n", idx+1, len(files))
+		fmt.Printf("start progress: %d/%d, file %s\n", idx+1, len(files), filePath)
 		inputFile, err := os.Open(filePath)
 		if err != nil {
 			return err
