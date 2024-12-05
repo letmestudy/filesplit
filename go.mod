@@ -1,4 +1,4 @@
-module filesplit
+module github.com/letmestudy/filesplit
 
 go 1.23.0
 
